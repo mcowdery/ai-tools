@@ -151,6 +151,9 @@ changes the port). Pin the tab.
   `notify.mjs` and the page uses it behind a dark overlay. It is git-ignored, so yours is never
   committed by accident.
 
+From a checkout, `npm start` (or double-clicking `start.cmd` on Windows) starts the dashboard and
+opens it in your browser; if it is already running, `start.cmd` just opens the page.
+
 The dashboard only runs while its command does. On Windows, `npx agent-notify autostart on` puts a
 shortcut in your Startup folder so it comes back at every login, with no console window;
 `autostart off` removes it. Elsewhere, start `node notify.mjs dashboard` from your login items or a
