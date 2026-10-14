@@ -159,6 +159,10 @@ shortcut in your Startup folder so it comes back at every login, with no console
 `autostart off` removes it. Elsewhere, start `node notify.mjs dashboard` from your login items or a
 systemd user service.
 
+If the tray app below is installed, `autostart on` and `hotkey on` use it instead: login starts the
+tray hidden (it starts the dashboard itself), and the Start Menu shortcut shows the board in it.
+Otherwise they fall back to the browser as described here.
+
 On Windows, `npx agent-notify hotkey on` adds a Start Menu shortcut with a global hotkey (default
 Ctrl+Alt+B; `--key Ctrl+Alt+F9` to change it, `hotkey off` to remove it). The hotkey opens the board
 as a bare app window in Edge or Chrome, with no tabs or address bar; pressing it again focuses that

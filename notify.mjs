@@ -1089,6 +1089,13 @@ function setMute(arg) {
 
 // ---- start the dashboard at login (Windows: a shortcut in the Startup folder) ----
 
+/** The tray app's Electron binary, or null if `npm install --prefix tray` hasn't been run. */
+function trayExe() {
+  const dir = join(dirname(SELF), 'tray');
+  const exe = join(dir, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron');
+  return existsSync(exe) ? { exe, dir } : null;
+}
+
 const STARTUP_DIR = process.env.AGENT_NOTIFY_STARTUP_DIR ?? join(process.env.APPDATA ?? homedir(), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup');
 const STARTUP_LNK = join(STARTUP_DIR, 'agent-notify dashboard.lnk');
 
@@ -1123,9 +1130,15 @@ function autostart(arg) {
     fail('autostart is Windows only. Elsewhere, start `node ' + SELF + ' dashboard` from your login items or a systemd user service.');
   }
   if (arg === 'on') {
-    const system = join(process.env.SystemRoot ?? 'C:\\Windows','System32');
-    // conhost --headless runs node with no console window at all
-    makeShortcut(STARTUP_LNK, join(system, 'conhost.exe'), `--headless "${process.execPath}" "${SELF}" dashboard`);
+    const tray = trayExe();
+    if (tray) {
+      // the tray app starts the dashboard itself; --hidden keeps the board from popping up at login
+      makeShortcut(STARTUP_LNK, tray.exe, `"${tray.dir}" --hidden`, { AGENT_NOTIFY_DESC: 'agent-notify tray' });
+    } else {
+      const system = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32');
+      // conhost --headless runs node with no console window at all
+      makeShortcut(STARTUP_LNK, join(system, 'conhost.exe'), `--headless "${process.execPath}" "${SELF}" dashboard`);
+    }
   } else if (arg === 'off') {
     drop(STARTUP_LNK);
   } else if (arg) {
@@ -1155,16 +1168,18 @@ function hotkey(arg, key = DEFAULT_HOTKEY) {
     if (!/^(ctrl\+alt|ctrl\+shift|ctrl\+alt\+shift)\+([a-z0-9]|f([1-9]|1[0-2]))$/i.test(key)) {
       fail('--key must be Ctrl+Alt+<key> or Ctrl+Shift+<key>, like Ctrl+Alt+B or Ctrl+Alt+F9');
     }
+    const tray = trayExe();
     const browser = appBrowser();
-    if (!browser) fail('no Edge or Chrome found; the hotkey opens the board as an app window with one of them');
+    if (!tray && !browser) fail('no tray app (npm install --prefix tray), Edge or Chrome found; the shortcut needs one of them');
     const url = `http://localhost:${process.env.AGENT_NOTIFY_PORT ?? 7878}`;
-    makeShortcut(HOTKEY_LNK, browser, `--app=${url}`, { AGENT_NOTIFY_HOTKEY: key.toUpperCase(), AGENT_NOTIFY_DESC: `agent-notify board (${key})` });
+    // the tray app is the main interface: launching it again just shows the board (and starts the dashboard if needed)
+    makeShortcut(HOTKEY_LNK, tray ? tray.exe : browser, tray ? `"${tray.dir}"` : `--app=${url}`, { AGENT_NOTIFY_HOTKEY: key.toUpperCase(), AGENT_NOTIFY_DESC: `agent-notify board (${key})` });
   } else if (arg === 'off') {
     drop(HOTKEY_LNK);
   } else if (arg) {
     fail('usage: agent-notify hotkey [on|off] [--key Ctrl+Alt+B]');
   }
-  console.log(existsSync(HOTKEY_LNK) ? `the board opens with its hotkey (${HOTKEY_LNK}); it needs the dashboard running: agent-notify autostart on` : 'no board hotkey');
+  console.log(existsSync(HOTKEY_LNK) ? `the board opens with its hotkey (${HOTKEY_LNK})` : 'no board hotkey');
 }
 
 // ---- tray: a tray icon and global hotkey that pop the board up (Electron, installed on demand in tray/) ----

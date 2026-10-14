@@ -146,7 +146,7 @@ app.whenReady().then(async () => {
   if (!globalShortcut.register(HOTKEY.replace(/^ctrl\+/i, 'CommandOrControl+'), toggle)) {
     console.error(`could not register ${HOTKEY}; another program has it`);
   }
-  show();
+  if (!process.argv.includes('--hidden')) show();
 });
 
 app.on('second-instance', () => win && show());
