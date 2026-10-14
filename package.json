@@ -18,6 +18,7 @@
     "dashboard.html"
   ],
   "scripts": {
+    "start": "node notify.mjs dashboard --open",
     "test": "node --test test/*.test.mjs"
   },
   "repository": {
