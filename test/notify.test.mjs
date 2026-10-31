@@ -731,3 +731,21 @@ test('activity in a status answer is cleaned up and capped', () => {
   assert.deepEqual([st.activity[0].session, st.activity[0].title, st.activity[0].detail.length, st.activity[0].since], ['5', '7', 300, undefined]);
   assert.deepEqual(parseStatus('{"state":"running"}').activity, []);
 });
+
+test('alert goes to the channels once per key within the window, and not at all when muted', () => {
+  const s = sandbox();
+  const sent = () => (existsSync(s.log) ? readFileSync(s.log, 'utf8').trim().split('\n').filter(Boolean).length : 0);
+  const a = s.cli(['alert', '--title', 'Pod', '--body', 'spending $3/h', '--key', 'burn', '--every', '1h']);
+  assert.equal(a.status, 0, a.stderr);
+  assert.equal(s.sent().length, 1);
+  const again = s.cli(['alert', '--title', 'Pod', '--body', 'spending $3/h', '--key', 'burn', '--every', '1h']);
+  assert.match(again.stdout, /already sent/);
+  assert.equal(s.sent().length, 1);
+  s.cli(['alert', '--title', 'Pod', '--body', 'other', '--key', 'balance']);
+  assert.equal(s.sent().length, 2);
+  s.cli(['mute', '2h']);
+  const muted = s.cli(['alert', '--title', 'Pod', '--body', 'x', '--key', 'new']);
+  assert.match(muted.stdout, /muted/);
+  assert.equal(s.sent().length, 2);
+  assert.notEqual(s.cli(['alert', '--title', 'only a title']).status, 0);
+});
