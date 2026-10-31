@@ -15,6 +15,9 @@
 //   npx agent-notify tray                        tray icon + global hotkey (Scroll Lock) that shows and hides the board as a popup
 //   npx agent-notify resources [id action]       the state of each configured resource (a GPU pod, a dev server); with an id and an
 //                                                action, runs that action. The dashboard shows the same as a tab; see "resources" below.
+//   npx agent-notify alert --title T --body B [--key K] [--every 6h]
+//                                                a message from any script (a cost check, a watchdog) to every configured channel;
+//                                                the same --key is sent at most once per --every, mute and quiet hours apply
 //   npx agent-notify test                        send a sample to each configured channel
 //   npx agent-notify clear                      hide finished sessions from the board (they return if they start working again)
 //   npx agent-notify mute <2h|30m|off>           silence every channel for a while (the board
@@ -1212,6 +1215,42 @@ async function test() {
   if (results.some((r) => r.error)) process.exitCode = 1;
 }
 
+/**
+ * Whether an alert with this key may go out now, and if so remembers it. The same key is held back for
+ * `everyMs` so a scheduled check that sees the same problem every 15 minutes tells you once, not 96 times a day.
+ */
+export function claimAlert(key, everyMs, now = Date.now()) {
+  const file = join(DIR, 'alerts.json');
+  const seen = readJson(file, {});
+  if (key && now - (seen[key] ?? 0) < everyMs) return false;
+  if (key) {
+    seen[key] = now;
+    for (const k of Object.keys(seen)) if (now - seen[k] > 7 * 86400e3) delete seen[k];
+    mkdirSync(DIR, { recursive: true });
+    writeFileSync(file, JSON.stringify(seen));
+  }
+  return true;
+}
+
+/** `alert --title T --body B [--key K] [--every 6h]`: a message from a script (a cost check, a watchdog) to every channel. */
+async function alertCommand(args) {
+  const get = (name) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : undefined; };
+  const title = get('title'), body = get('body');
+  if (!title || !body) fail('usage: agent-notify alert --title <text> --body <text> [--key <id>] [--every 6h]');
+  const every = get('every') ?? '6h';
+  const m = /^(\d+)(m|h|d)$/.exec(every);
+  if (!m) fail('--every takes a number and m, h or d (30m, 6h, 1d)');
+  const everyMs = Number(m[1]) * { m: 60e3, h: 3600e3, d: 86400e3 }[m[2]];
+  const cfg = loadConfig();
+  const ev = { label: title, state: 'waiting', body };
+  const channels = channelsFor(ev, cfg);
+  if (!channels.length) return console.log('not sent: muted or quiet hours');
+  if (!claimAlert(get('key'), everyMs)) return console.log(`not sent: "${get('key')}" was already sent within ${every}`);
+  const results = await send(ev, { ...cfg, channels });
+  for (const r of results) console.log(`${r.channel.padEnd(8)} ${r.error ? `FAILED: ${r.error}` : 'sent'}`);
+  if (results.some((r) => r.error)) process.exitCode = 1;
+}
+
 // ---- cli ----
 
 async function main() {
@@ -1251,8 +1290,10 @@ async function main() {
     await resourcesCommand(rest);
   } else if (cmd === 'test') {
     await test();
+  } else if (cmd === 'alert') {
+    await alertCommand(rest);
   } else {
-    fail('usage: agent-notify <setup [--ntfy] [--remove] | status | usage [--since 7d] | dashboard [--open] | resources [id action] | autostart [on|off] | hotkey [on|off] [--key Ctrl+Alt+B] | tray | clear | mute [duration|off] | test>');
+    fail('usage: agent-notify <setup [--ntfy] [--remove] | status | usage [--since 7d] | dashboard [--open] | resources [id action] | autostart [on|off] | hotkey [on|off] [--key Ctrl+Alt+B] | tray | clear | mute [duration|off] | alert --title T --body B [--key K] [--every 6h] | test>');
   }
 }
 
