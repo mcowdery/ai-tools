@@ -21,13 +21,14 @@ the `actions` that apply now). To show a new tool, give it a `status --json` com
 
 ## Using the config
 
-`config/CLAUDE.md` and `config/skills/*` are copies for the files in `~/.claude`. Link them there rather
-than copying, so an edit in one place is an edit in both:
+`config/skills/*` are linked into `~/.claude/skills` with junctions (no admin needed), so an edit in one place is an edit in both:
 
 ```powershell
-New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\.claude\CLAUDE.md" -Target "<this repo>\config\CLAUDE.md"
 New-Item -ItemType Junction -Path "$env:USERPROFILE\.claude\skills\handoff" -Target "<this repo>\config\skills\handoff"
 ```
+
+`config/CLAUDE.md` is a copy: a file symlink needs admin rights on Windows, and a hard link breaks when an editor
+rewrites the file. After editing either one, copy it over the other (`Copy-Item config\CLAUDE.md ~\.claude\CLAUDE.md`).
 
 Machine-specific and private files stay out of the repo: `~/.agent-notify.json` (notification topics),
 Jev keys, decision logs and `~/.claude/settings.json`.
