@@ -56,9 +56,9 @@ Clone this repo **once**; every project points at that one checkout, so a `git p
 them all (no per-project copies to drift out of date):
 
 ```sh
-git clone https://github.com/mcowdery/claude-model-guard.git
-node claude-model-guard/scripts/install.mjs --project path/to/your-project   # personal settings.local.json
-node claude-model-guard/scripts/install.mjs --global                          # or: every project
+git clone https://github.com/mcowdery/ai-tools.git
+node ai-tools/tools/model-guard/scripts/install.mjs --project path/to/your-project   # personal settings.local.json
+node ai-tools/tools/model-guard/scripts/install.mjs --global                          # or: every project
 ```
 
 `install.mjs` is idempotent, keeps your other hooks, and supports `--shared` (use the

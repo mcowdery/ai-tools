@@ -1,5 +1,7 @@
 # agent-concurrency-kit
 
+> Part of [ai-tools](../../README.md). The dashboard it serves lives in [`dashboard/`](../../dashboard).
+
 Four small, dependency-free scripts for running several AI coding agents against one codebase at
 once without them tripping over each other. No framework, no config service — just git worktrees,
 lockfiles and a few Claude Code hooks, which is all this problem actually needs.
@@ -55,7 +57,7 @@ hanging, and says so.
 Use it as a library if you'd rather call it inline:
 
 ```js
-import { withLock } from 'agent-concurrency-kit/resource-queue.mjs';
+import { withLock } from '<path to ai-tools>/tools/concurrency/resource-queue.mjs';
 
 await withLock('gpu', 'exclusive', async () => {
   // only one exclusive holder of 'gpu' runs this at a time
@@ -289,13 +291,14 @@ never interrupts the session; errors are appended to `errors.log` next to the bo
 
 ## Install
 
-Not yet published to npm. Use directly from GitHub:
+Not published to npm. Clone the repo and link the commands once, so every `npx agent-*` line above works from any folder:
 
 ```
-npm install github:mcowdery/agent-concurrency-kit
+git clone https://github.com/mcowdery/ai-tools.git
+cd ai-tools/tools/concurrency && npm link
 ```
 
-or clone it and run the scripts with `node` directly — there's nothing else to build.
+There is nothing to build. Or skip the link and run the scripts with `node` directly.
 
 ## Tests
 

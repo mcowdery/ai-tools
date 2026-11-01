@@ -1,0 +1,7 @@
+node_modules/
+.agents/
+dashboard-bg.*
+.env.jev
+jev.config.json
+*.jsonl
+*.bak*
