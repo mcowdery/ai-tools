@@ -14,6 +14,10 @@ test('confident downgrade nudges, not blocks', () => {
 });
 test('downgrade blocks when opted in', () =>
   assert.equal(d('sonnet', 'haiku', 0.95, null, { blockDowngrades: true }).action, 'block'));
+test('block: false turns every block into a nudge', () => {
+  assert.equal(d('haiku', 'opus', 0.99, null, { block: false }).action, 'nudge');
+  assert.equal(d('sonnet', 'haiku', 0.99, null, { block: false, blockDowngrades: true }).action, 'nudge');
+});
 test('unranked tier (fable) never blocks', () => {
   assert.equal(d('sonnet', 'fable', 0.99).action, 'nudge');
   assert.equal(d('fable', 'opus', 0.99).action, 'nudge');

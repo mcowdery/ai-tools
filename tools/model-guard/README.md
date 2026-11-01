@@ -23,6 +23,7 @@ Three Claude Code hooks, working together:
   - **anything else** (a downgrade, fable, current model unknown, a close call) → doesn't
     block, just hands Claude a short note it can mention to you if relevant. Running a bigger
     model than needed only costs money; set `CLAUDE_GUARD_BLOCK_DOWNGRADES=1` to block those too.
+    Set `CLAUDE_GUARD_BLOCK=0` to never block: every would-be block becomes a note instead.
 
 What it deliberately does **not** score: background-task completion notifications, slash
 commands (`/model`, `/clear`, ...), `!` shell commands, and bare replies like "continue" or

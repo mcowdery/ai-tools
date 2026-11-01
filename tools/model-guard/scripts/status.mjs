@@ -43,10 +43,12 @@ export function buildStatus({ settings, hasKey, logs = [], now = Date.now() }) {
   const found = hooksFound(settings);
   const total = Object.keys(EVENTS).length;
   const state = found === total ? 'running' : found === 0 ? 'stopped' : 'error';
-  const blocking = (settings?.env?.CLAUDE_GUARD_BLOCK_DOWNGRADES ?? process.env.CLAUDE_GUARD_BLOCK_DOWNGRADES) === '1';
+  const env = (k) => settings?.env?.[k] ?? process.env[k];
+  const blocking = env('CLAUDE_GUARD_BLOCK_DOWNGRADES') === '1';
+  const notesOnly = env('CLAUDE_GUARD_BLOCK') === '0';
   const fields = [
     { label: 'Hooks', value: `${found} of ${total} installed` },
-    { label: 'Downgrades', value: blocking ? 'blocked' : 'advisory only' },
+    { label: notesOnly ? 'Blocking' : 'Downgrades', value: notesOnly ? 'off: notes only' : blocking ? 'blocked' : 'advisory only' },
     { label: 'Classifier key', value: hasKey ? 'set' : 'missing' },
   ];
   if (logs.length) {

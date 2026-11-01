@@ -91,7 +91,10 @@ async function main() {
   const pct = Math.round(answer.confidence * 100);
   const ranked = rankedProbabilities(answer);
 
-  const opts = { blockDowngrades: process.env.CLAUDE_GUARD_BLOCK_DOWNGRADES === '1' };
+  const opts = {
+    blockDowngrades: process.env.CLAUDE_GUARD_BLOCK_DOWNGRADES === '1',
+    block: process.env.CLAUDE_GUARD_BLOCK !== '0',
+  };
   const verdict = decide({
     currentTier: current.tier,
     choice: answer.choice,

@@ -10,6 +10,8 @@ export const DEFAULTS = {
   gracePrompts: 3, // the resubmitted prompt plus the two after it
   // Running a bigger model than needed only costs money; off by default.
   blockDowngrades: false,
+  // Off turns every block into a nudge: the guard only ever adds a note.
+  block: true,
   // Nudges are only worth Claude's one-liner when Jev is fairly sure, and not on every prompt.
   nudgeConfidence: 0.8,
   nudgeEvery: 5, // at most one nudge per this many scored prompts
@@ -42,7 +44,7 @@ export function decide({ currentTier, choice, confidence, promptsSinceSwitch, hi
 
   const inGrace = promptsSinceSwitch !== null && promptsSinceSwitch < o.gracePrompts;
   const threshold = inGrace ? o.graceConfidence : o.blockConfidence;
-  const blockable = kind === 'upgrade' || (kind === 'downgrade' && o.blockDowngrades);
+  const blockable = o.block && (kind === 'upgrade' || (kind === 'downgrade' && o.blockDowngrades));
 
   return { action: blockable && confidence >= threshold ? 'block' : 'nudge', kind };
 }
