@@ -180,3 +180,10 @@ knowing before you trust any of this blindly — read the scripts, they're short
 ## License
 
 MIT - see [LICENSE](LICENSE).
+
+## On the dashboard
+
+`node scripts/status.mjs [projectDir ...]` prints one line of JSON: whether the three hooks are installed, whether
+downgrades are blocked, whether a classifier key is set (never the key), and the last 24 hours of decisions from each
+project folder you name. It is the shape the [agent-notify dashboard](../concurrency/README.md)'s Resources tab reads;
+add it to `resources` in `~/.agent-notify.json` with `install.mjs --global` and `--global --uninstall` as its actions.
