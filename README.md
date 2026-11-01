@@ -11,7 +11,7 @@ the small tools it reads from, and the Claude Code config I carry between projec
 | [`tools/asset-check/`](tools/asset-check) | Review sheets and fault checks for 3D models and animations, rendered in headless Blender, with a Claude skill. |
 | [`config/`](config) | My global `CLAUDE.md` and skills, so the way I like to work follows me into every new project. |
 
-Each tool has its own README and tests (`npm test` inside its folder). Nothing here is published to npm.
+Each tool has its own README; concurrency and model-guard have tests (`npm test` inside the folder). Nothing here is published to npm.
 
 ## Adding a tool to the dashboard
 
