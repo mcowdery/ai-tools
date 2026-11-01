@@ -14,8 +14,7 @@
     "worktree.mjs",
     "resource-queue.mjs",
     "notify.mjs",
-    "changes.mjs",
-    "dashboard.html"
+    "changes.mjs"
   ],
   "scripts": {
     "start": "node notify.mjs dashboard --open",

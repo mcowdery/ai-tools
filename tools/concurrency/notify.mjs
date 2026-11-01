@@ -715,7 +715,7 @@ function usage(since) {
 
 // ---- dashboard: the same board as a page, for a pinned browser tab ----
 
-const PAGE = join(dirname(SELF), 'dashboard.html');
+const PAGE = join(dirname(SELF), '..', '..', 'dashboard', 'dashboard.html');
 
 const settingsView = () => {
   const cfg = loadConfig({ fileOnly: true });
@@ -1094,7 +1094,7 @@ function setMute(arg) {
 
 /** The tray app's Electron binary, or null if `npm install --prefix tray` hasn't been run. */
 function trayExe() {
-  const dir = join(dirname(SELF), 'tray');
+  const dir = join(dirname(SELF), '..', '..', 'dashboard', 'tray');
   const exe = join(dir, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron');
   return existsSync(exe) ? { exe, dir } : null;
 }
@@ -1188,7 +1188,7 @@ function hotkey(arg, key = DEFAULT_HOTKEY) {
 // ---- tray: a tray icon and global hotkey that pop the board up (Electron, installed on demand in tray/) ----
 
 function tray() {
-  const dir = join(dirname(SELF), 'tray');
+  const dir = join(dirname(SELF), '..', '..', 'dashboard', 'tray');
   const exe = join(dir, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron');
   if (!existsSync(exe)) fail(`the tray needs Electron: run  npm install --prefix "${dir}"  first`);
   // editors built on Electron export ELECTRON_RUN_AS_NODE, which would make this run as plain Node

@@ -13,7 +13,7 @@ const HOTKEY = process.env.AGENT_NOTIFY_HOTKEY ?? 'ScrollLock';
 // Scales the board's text up; AGENT_NOTIFY_ZOOM overrides it (1 is the original size).
 const ZOOM = Number(process.env.AGENT_NOTIFY_ZOOM ?? 1.4);
 const BOUNDS_FILE = path.join(app.getPath('userData'), 'window-bounds.json');
-const NOTIFY = path.join(__dirname, '..', 'notify.mjs');
+const NOTIFY = path.join(__dirname, '..', '..', 'tools', 'concurrency', 'notify.mjs');
 
 let win;
 let tray;

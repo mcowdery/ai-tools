@@ -347,7 +347,7 @@ test('the dashboard saves settings, and refuses writes that do not come from its
 
 // The page's sorting runs in the browser, so lift its sort code out of dashboard.html and run it here.
 test('the page sorts sessions by status, name, time in state and last activity, both ways', () => {
-  const html = readFileSync(fileURLToPath(new URL('../dashboard.html', import.meta.url)), 'utf8');
+  const html = readFileSync(fileURLToPath(new URL('../../../dashboard/dashboard.html', import.meta.url)), 'utf8');
   const src = html.slice(html.indexOf('const STATE_RANK'), html.indexOf('function syncSortControls'));
   const sorter = new Function('pref', `${src}; return { sortRows, set(k, asc) { sortKey = k; sortAsc = asc; } };`)(() => null);
   const rows = [
