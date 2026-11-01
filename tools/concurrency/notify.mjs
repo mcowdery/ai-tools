@@ -620,6 +620,8 @@ function board(now = Date.now()) {
   } catch {}
   for (const name of names.filter((n) => n.endsWith('.json'))) {
     const s = readJson(join(DIR, name), null);
+    // Not a session record (alerts.json keeps the alert dedupe times): not a row, and not ours to delete.
+    if (s && typeof s.state !== 'string') continue;
     // Gone: too old, or the Claude Code process that owned it has exited. Sessions recorded before the
     // process id was kept have only the age to go on, and only a stuck "running" is dropped on that.
     const orphaned = s && (s.pid ? !alive(s.pid) : s.state === 'running' && now - s.updated > STALE_RUNNING_MS);

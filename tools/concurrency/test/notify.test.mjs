@@ -460,6 +460,17 @@ test('a muted session still shows on the board but sends no alerts', () => {
   assert.equal(recordOf(s).muted, true);
 });
 
+test('a file in the board folder that is not a session (alerts.json) is not a row, and is left in place', () => {
+  const s = sandbox();
+  s.fire('UserPromptSubmit');
+  const other = join(s.env.AGENT_NOTIFY_DIR, 'alerts.json');
+  writeFileSync(other, JSON.stringify({ 'spend-burn': Date.now() }));
+  const r = s.cli(['status']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /1 running/);
+  assert.ok(existsSync(other));
+});
+
 test('clear hides finished sessions, keeps them hidden, and brings one back when it works again', () => {
   const s = sandbox();
   s.fire('UserPromptSubmit', { prompt: 'fix the login bug' });
