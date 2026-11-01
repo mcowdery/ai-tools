@@ -6,6 +6,10 @@ Four small, dependency-free scripts for running several AI coding agents against
 once without them tripping over each other. No framework, no config service — just git worktrees,
 lockfiles and a few Claude Code hooks, which is all this problem actually needs.
 
+> **Running the commands.** Nothing here is published to npm, so `npx agent-worktree`, `agent-resource-queue`,
+> `agent-changes` and `agent-notify` below mean `node tools/concurrency/worktree.mjs`, `resource-queue.mjs`,
+> `changes.mjs` and `notify.mjs` (use the full path from another project).
+
 ## The problem
 
 Run two or more agents (Claude Code, Copilot, whatever) against the same checkout and you get, in
@@ -172,7 +176,7 @@ window. It needs the dashboard running, so pair it with `autostart on`. Windows 
 Ctrl+Alt or Ctrl+Shift plus one key for these.
 
 For a real popup instead of a browser window, there is an optional tray app (Electron, so it is the
-one part of the kit with a dependency). Install it once with `npm install --prefix tray`, then
+one part of the kit with a dependency). Install it once with `npm install --prefix dashboard/tray` (from the repo root), then
 `npx agent-notify tray` puts an icon in the tray and binds Scroll Lock (`AGENT_NOTIFY_HOTKEY`, e.g. `F13`, to
 change it) to show and hide the board as a frameless window that hides on Esc or when it loses
 focus. It starts the dashboard itself if it isn't running, and its tray menu has "Start at login".

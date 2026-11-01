@@ -1094,7 +1094,7 @@ function setMute(arg) {
 
 // ---- start the dashboard at login (Windows: a shortcut in the Startup folder) ----
 
-/** The tray app's Electron binary, or null if `npm install --prefix tray` hasn't been run. */
+/** The tray app's Electron binary, or null if `npm install --prefix dashboard/tray` hasn't been run. */
 function trayExe() {
   const dir = join(dirname(SELF), '..', '..', 'dashboard', 'tray');
   const exe = join(dir, 'node_modules', 'electron', 'dist', process.platform === 'win32' ? 'electron.exe' : 'electron');
@@ -1175,7 +1175,7 @@ function hotkey(arg, key = DEFAULT_HOTKEY) {
     }
     const tray = trayExe();
     const browser = appBrowser();
-    if (!tray && !browser) fail('no tray app (npm install --prefix tray), Edge or Chrome found; the shortcut needs one of them');
+    if (!tray && !browser) fail('no tray app (npm install --prefix dashboard/tray), Edge or Chrome found; the shortcut needs one of them');
     const url = `http://localhost:${process.env.AGENT_NOTIFY_PORT ?? 7878}`;
     // the tray app is the main interface: launching it again just shows the board (and starts the dashboard if needed)
     makeShortcut(HOTKEY_LNK, tray ? tray.exe : browser, tray ? `"${tray.dir}"` : `--app=${url}`, { AGENT_NOTIFY_HOTKEY: key.toUpperCase(), AGENT_NOTIFY_DESC: `agent-notify board (${key})` });
