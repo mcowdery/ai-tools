@@ -1,17 +1,27 @@
 ---
 name: handoff
-description: When a research, investigation or planning task is finished and implementation has not started, write an implementation brief and recommend which model should implement it. Use at the end of any research/investigate/plan request, before making code changes. Do not use mid-research, or when the user asked to implement directly.
+description: When a research, investigation or planning task is finished and implementation has not started, write an implementation brief, split the work into parallel tracks where that pays, and recommend which model should do each part. Use at the end of any research/investigate/plan request, and whenever you write a plan or proposal with three or more steps, before making code changes. Do not use mid-research, or when the user asked to implement directly.
 ---
 
-# Handoff: brief and model recommendation
+# Handoff: brief, parallel tracks and model recommendation
 
-Run this after research or investigation, before implementation starts.
+Run this after research or investigation, or when writing any plan of three or more steps, before implementation starts.
 
 1. **Summarize findings.** Files involved, the decision made, constraints, open risks.
-2. **Classify the implementation work:**
+2. **Split by dependency.** List the steps and mark what each one needs from the others. Group steps that do not depend on each other and touch different files into tracks. Anything that needs another step's output waits for it.
+3. **Decide parallel or in order, and say why in one line.** Running in order is a normal answer. Parallel agents pay only when all of these hold:
+   - two or more tracks, each big enough to justify writing a brief (a tiny task costs more to brief than to do);
+   - the tracks touch different files or modules (the checkout is shared, so overlapping edits conflict; use worktree isolation if they must overlap);
+   - each track has a clear spec and its own way to verify it;
+   - the interface between tracks is already agreed.
+   Many cheap items (triaging dozens of failures, labelling issues) are also a good fit, with a small model per agent.
+4. **Classify each track's work and pick a model:**
    - Mechanical (clear spec, repetitive edits, low ambiguity): fast/cheap model.
    - Moderate (multi-file, follows existing patterns): mid-tier model.
    - Judgment-heavy (new architecture, subtle invariants, ambiguous requirements): strongest model.
-3. **State the recommendation** and the one-line reason. Say what would change the call (e.g. "if X turns out to be ambiguous, move up a tier").
-4. **Write the brief** so a fresh session can implement it without redoing the research: goal, exact files and symbols, the chosen approach, things already ruled out, how to verify.
-5. **Offer the switch:** the user runs `/model`, or delegate the implementation to a subagent with `model` set to the recommendation. Do not start implementing unless the user says so.
+5. **Add the merge-and-verify step explicitly**, with its own model (usually the strongest in the plan). Parallel work has to be integrated and checked, and that is the hard part.
+6. **State the recommendation** and the one-line reason for each track. Say what would change the call (e.g. "if X turns out to be ambiguous, move up a tier").
+7. **Write the brief** so a fresh session or agent can do each track without redoing the research: goal, exact files and symbols, the chosen approach, things already ruled out, how to verify. Agents start with no context, so the brief is all they have.
+8. **Offer the next step:** the user runs `/model`, or you launch the tracks as subagents with `model` set per track. Do not start implementing unless the user says so.
+
+A plan with a single track is just one line: the model to use and why.
