@@ -268,11 +268,15 @@
         <legend>Where alerts go</legend>
         <div class="chan">
           <div class="head"><label><input type="checkbox" data-chan="dashboard"> This page</label><button type="button" class="btn" data-test="dashboard"><svg class="ic"><use href="#i-play"/></svg>Test</button><span class="result" data-result="dashboard"></span></div>
-          <div class="desc">Browser notifications from this tab; clicking one brings the tab forward. Use the bell at the top to allow them. The tab must stay open.</div>
+          <div class="desc">Browser notifications from this tab, with no sound of their own (use Sound below, or the speaker at the top for a beep from this tab); clicking one brings the tab forward. Use the bell at the top to allow them. The tab must stay open.</div>
         </div>
         <div class="chan">
           <div class="head"><label><input type="checkbox" data-chan="toast"> Desktop toast</label><button type="button" class="btn" data-test="toast"><svg class="ic"><use href="#i-play"/></svg>Test</button><span class="result" data-result="toast"></span></div>
-          <div class="desc">A system notification (Windows, macOS or Linux). On Windows, clicking it does nothing, and it is hidden while Do Not Disturb is on.</div>
+          <div class="desc">A system notification (Windows, macOS or Linux), with no sound of its own. On Windows, clicking it does nothing, and it is hidden while Do Not Disturb is on.</div>
+        </div>
+        <div class="chan">
+          <div class="head"><label><input type="checkbox" data-chan="sound"> Sound</label><button type="button" class="btn" data-test="sound"><svg class="ic"><use href="#i-play"/></svg>Test</button><span class="result" data-result="sound"></span></div>
+          <div class="desc">A short chime on this PC. Separate from the popups, so it still plays when they are skipped, and also during Do Not Disturb.</div>
         </div>
         <div class="chan">
           <div class="head"><label><input type="checkbox" data-chan="ntfy"> Phone push (ntfy)</label><button type="button" class="btn" data-test="ntfy"><svg class="ic"><use href="#i-play"/></svg>Test</button><span class="result" data-result="ntfy"></span></div>
@@ -301,6 +305,10 @@
           <div class="desc">You were probably watching. Alerts for "needs you" are never skipped by this.</div>
         </div>
         <div class="chan">
+          <div class="head"><label><input type="checkbox" id="hide-popups-focused"> No popup when I'm already looking at that session (Windows)</label></div>
+          <div class="desc">Skips this page's popup and the desktop toast when that session's window is in front, its title names the project or session, and you've used the keyboard or mouse in the last minute. The sound and phone push still go. Two sessions in one VS Code window can't always be told apart.</div>
+        </div>
+        <div class="chan">
           <div class="head"><label><input type="checkbox" id="show-prompt"> Show each session's last prompt on this page</label></div>
           <div class="desc">Kept on this machine only and never put in a notification. Turn off if prompts may hold anything private.</div>
         </div>
@@ -318,6 +326,7 @@
             <div class="checks">Quiet only on (none ticked = all):
               <label><input type="checkbox" data-qh-chan="dashboard"> page</label>
               <label><input type="checkbox" data-qh-chan="toast"> toast</label>
+              <label><input type="checkbox" data-qh-chan="sound"> sound</label>
               <label><input type="checkbox" data-qh-chan="ntfy"> phone</label>
               <label><input type="checkbox" data-qh-chan="webhook"> webhook</label>
               <label><input type="checkbox" data-qh-chan="command"> command</label>
@@ -398,8 +407,9 @@
   function announce(s) {
     const n = s.notified;
     beep(n.state === 'waiting');
-    if ('Notification' in window && Notification.permission === 'granted') {
-      const note = new Notification(s.label, { body: n.body || n.state, tag: s.session, requireInteraction: n.state === 'waiting' });
+    // n.seen: you were already looking at that session. The popup is silent; the sound channel and the beep make the noise.
+    if (!n.seen && 'Notification' in window && Notification.permission === 'granted') {
+      const note = new Notification(s.label, { body: n.body || n.state, tag: s.session, requireInteraction: n.state === 'waiting', silent: true });
       note.onclick = () => { window.focus(); note.close(); };
     }
   }
@@ -789,6 +799,7 @@
     $('command').value = c.command;
     $('min-seconds').value = c.minSeconds;
     $('show-prompt').checked = c.showPrompt;
+    $('hide-popups-focused').checked = c.hidePopupsWhenFocused;
     const q = c.quietHours;
     $('qh-on').checked = !!q;
     $('qh-start').value = q ? q.start.padStart(5, '0') : '22:00';
@@ -816,6 +827,7 @@
       command: $('command').value,
       minSeconds: $('min-seconds').value,
       showPrompt: $('show-prompt').checked,
+      hidePopupsWhenFocused: $('hide-popups-focused').checked,
       quietHours: on ? {
         start: $('qh-start').value,
         end: $('qh-end').value,

@@ -236,8 +236,9 @@ asks first. `agent-notify resources` prints every resource and its state in the 
 
 | Channel | What it is | Setup |
 |---|---|---|
-| `dashboard` | Browser notifications from the dashboard tab (the tab must stay open) | Click the bell on the page |
-| `toast` | Desktop notification: Windows 10/11, macOS, or Linux (`notify-send`) | On by default |
+| `dashboard` | Browser notifications from the dashboard tab (the tab must stay open), silent | Click the bell on the page |
+| `toast` | Desktop notification: Windows 10/11, macOS, or Linux (`notify-send`), silent | On by default |
+| `sound` | A short chime on this PC, separate from the popups so each can be on or off | On by default |
 | `ntfy` | Phone push through the free [ntfy](https://ntfy.sh) app; "needs you" arrives at higher priority | `setup --ntfy`, then subscribe to the printed topic in the app |
 | `webhook` | Discord or Slack channel message | `"webhook": "<url>"` |
 | `command` | Anything else: runs your command with `AGENT_NOTIFY_TITLE`, `_BODY`, `_STATE`, `_LABEL` set | `"command": "..."` |
@@ -247,6 +248,12 @@ deliver clicks to toasts from a plain script, however it is registered; this was
 and Do Not Disturb hides it. That is why the dashboard exists: its browser notifications are
 clickable and its page does not depend on either. The phone push is an optional extra, not the
 main route.
+
+On Windows, both popups (the toast and the dashboard's) are skipped when you are already looking at
+that session: its window is in front, the window title names the project folder or session, and you
+have used the keyboard or mouse in the last minute (a focused window you walked away from still gets
+the popup). The sound, phone push, webhook and command still go. Two sessions in one VS Code window
+share a window, so one can hide the other's popup. Turn it off with `"hidePopupsWhenFocused": false`.
 
 Configuration is `~/.agent-notify.json` (each key also has an `AGENT_NOTIFY_*` env var; see the top
 of `notify.mjs`), and the settings page edits it for you. ntfy and webhook turn on once configured;

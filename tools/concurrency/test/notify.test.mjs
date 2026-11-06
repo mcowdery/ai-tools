@@ -56,6 +56,27 @@ test('finishing a turn sends one notification and the board shows it done', () =
   assert.match(s.cli(['status']).stdout, /done/);
 });
 
+test('looking at the session marks the alert seen (no popup) but still sends it, unless that is switched off', () => {
+  const notified = (s) => JSON.parse(readFileSync(join(s.env.AGENT_NOTIFY_DIR, 's1.json'), 'utf8')).notified;
+  const looking = { AGENT_NOTIFY_LOOKING: '1', AGENT_NOTIFY_CHANNELS: 'dashboard,command' };
+  const s = sandbox(looking);
+  s.fire('UserPromptSubmit');
+  s.fire('Stop');
+  assert.equal(notified(s).seen, true);
+  assert.equal(s.sent().length, 1);
+
+  const off = sandbox({ ...looking, AGENT_NOTIFY_HIDE_POPUPS_WHEN_FOCUSED: 'false' });
+  off.fire('UserPromptSubmit');
+  off.fire('Stop');
+  assert.equal(notified(off).seen, undefined);
+
+  // no popup channel on: nothing to hide, so the check is not even made
+  const away = sandbox({ AGENT_NOTIFY_LOOKING: '1' });
+  away.fire('UserPromptSubmit');
+  away.fire('Stop');
+  assert.equal(notified(away).seen, undefined);
+});
+
 test('a short turn is not announced but is still recorded', () => {
   const s = sandbox({ AGENT_NOTIFY_MIN_SECONDS: '600' });
   s.fire('UserPromptSubmit');
@@ -298,6 +319,11 @@ test('settings are validated and unrelated config is kept', () => {
   assert.equal(next.somethingElse, 1);
   assert.deepEqual(next.quietHours, { start: '22:00', end: '07:00', allow: ['waiting'], channels: ['ntfy'] });
   assert.equal(applySettings(next, { quietHours: null }).quietHours, undefined);
+  // the toast and its sound switch on and off separately, and hiding the toast while you look is its own setting
+  const quiet = applySettings({}, { channels: ['toast'], hidePopupsWhenFocused: false });
+  assert.deepEqual(quiet.channels, ['toast']);
+  assert.equal(quiet.hidePopupsWhenFocused, false);
+  assert.deepEqual(applySettings({}, { channels: ['sound'], quietHours: { start: '22:00', end: '07:00', channels: ['sound'] } }).quietHours.channels, ['sound']);
 
   assert.throws(() => applySettings({}, { channels: ['carrier-pigeon'] }), /unknown channel/);
   assert.throws(() => applySettings({}, { channels: ['ntfy'] }), /nothing to send to/);

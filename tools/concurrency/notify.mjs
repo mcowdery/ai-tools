@@ -28,7 +28,12 @@
 // Sessions in an `agent-worktree` checkout show up as <project>/<worktree-name>.
 //
 // Channels (config in ~/.agent-notify.json, each overridable by an env var):
-//   toast    desktop notification — Windows 10/11, macOS or Linux (notify-send). On by default.
+//   toast    desktop notification — Windows 10/11, macOS or Linux (notify-send). On by default. Silent:
+//            the sound channel makes the noise.
+//   sound    a short sound, separate from the popups so it plays even when they are skipped. On by default.
+// On Windows the toast and the dashboard page's popup are skipped while you are already looking at that
+// session (its window in front, and keyboard or mouse used in the last minute); the sound still plays.
+// {"hidePopupsWhenFocused": false} (or AGENT_NOTIFY_HIDE_POPUPS_WHEN_FOCUSED=false) stops that.
 //   ntfy     phone push via ntfy.sh (or your own server): {"ntfy": {"topic": "...", "server": "..."}}
 //            or AGENT_NOTIFY_NTFY_TOPIC. Turns on by itself once a topic is set.
 //   webhook  JSON POST for Discord or Slack: {"webhook": "https://..."} or AGENT_NOTIFY_WEBHOOK.
@@ -276,10 +281,11 @@ function loadConfig({ fileOnly = false } = {}) {
   const command = env.AGENT_NOTIFY_COMMAND ?? file.command;
   const channels =
     env.AGENT_NOTIFY_CHANNELS?.split(',').map((s) => s.trim()).filter(Boolean) ??
-    file.channels ?? ['toast', ...(ntfy.topic ? ['ntfy'] : []), ...(webhook ? ['webhook'] : []), ...(command ? ['command'] : [])];
+    file.channels ?? ['toast', 'sound', ...(ntfy.topic ? ['ntfy'] : []), ...(webhook ? ['webhook'] : []), ...(command ? ['command'] : [])];
   const minSeconds = Number(env.AGENT_NOTIFY_MIN_SECONDS ?? file.minSeconds ?? 20);
   const showPrompt = !/^(0|false|off|no)$/i.test(String(env.AGENT_NOTIFY_SHOW_PROMPT ?? file.showPrompt ?? true));
-  return { channels, ntfy, webhook, command, minSeconds, showPrompt, quietHours: file.quietHours, file };
+  const hidePopupsWhenFocused = !/^(0|false|off|no)$/i.test(String(env.AGENT_NOTIFY_HIDE_POPUPS_WHEN_FOCUSED ?? file.hidePopupsWhenFocused ?? true));
+  return { channels, ntfy, webhook, command, minSeconds, showPrompt, hidePopupsWhenFocused, quietHours: file.quietHours, file };
 }
 
 const clock = (hhmm) => {
@@ -296,7 +302,7 @@ export function inQuietHours(date, { start, end } = {}) {
   return from < to ? now >= from && now < to : now >= from || now < to;
 }
 
-const CHANNEL_NAMES = ['dashboard', 'toast', 'ntfy', 'webhook', 'command'];
+const CHANNEL_NAMES = ['dashboard', 'toast', 'sound', 'ntfy', 'webhook', 'command'];
 
 const checkUrl = (value, what) => {
   try {
@@ -339,6 +345,7 @@ export function applySettings(file, body) {
     out.minSeconds = n;
   }
   if (has('showPrompt')) out.showPrompt = body.showPrompt === true;
+  if (has('hidePopupsWhenFocused')) out.hidePopupsWhenFocused = body.hidePopupsWhenFocused === true;
   if (has('quietHours')) {
     const q = body.quietHours;
     if (q === null) {
@@ -388,6 +395,54 @@ function run(cmd, args, env = {}, { shell = false, timeout = 8000 } = {}) {
   });
 }
 
+// Prints 1 when you are looking at the session running as AGENT_NOTIFY_PID: the window in front belongs to a
+// process the session runs under, its title names the project or session (one VS Code process owns every
+// VS Code window), and you have used the keyboard or mouse in the last minute (a focused window you walked
+// away from does not count).
+const FOCUS_PS = `
+$ErrorActionPreference = 'Stop'
+try {
+  Add-Type -Namespace AgentNotify -Name Win -MemberDefinition @'
+[DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+[DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+[DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder s, int n);
+[StructLayout(LayoutKind.Sequential)] struct LastInput { public uint Size; public uint Time; }
+[DllImport("user32.dll")] static extern bool GetLastInputInfo(ref LastInput li);
+public static uint ForegroundPid() { uint pid; GetWindowThreadProcessId(GetForegroundWindow(), out pid); return pid; }
+public static string ForegroundTitle() { var s = new System.Text.StringBuilder(512); GetWindowText(GetForegroundWindow(), s, 512); return s.ToString(); }
+public static uint IdleMs() { var li = new LastInput(); li.Size = 8; GetLastInputInfo(ref li); return unchecked((uint)Environment.TickCount - li.Time); }
+'@
+  $parent = @{}
+  Get-CimInstance Win32_Process -Property ProcessId, ParentProcessId | ForEach-Object { $parent[[uint32]$_.ProcessId] = [uint32]$_.ParentProcessId }
+  $fg = [AgentNotify.Win]::ForegroundPid()
+  $p = [uint32]$env:AGENT_NOTIFY_PID
+  $mine = $false
+  for ($i = 0; $i -lt 30 -and $p; $i++) { if ($p -eq $fg) { $mine = $true; break }; $p = $parent[$p] }
+  $title = [AgentNotify.Win]::ForegroundTitle()
+  $named = @($env:AGENT_NOTIFY_WINDOW -split [char]10 | Where-Object { $_ -and $title.IndexOf($_, [StringComparison]::OrdinalIgnoreCase) -ge 0 }).Count -gt 0
+  if ($mine -and $named -and [AgentNotify.Win]::IdleMs() -lt 60000) { '1' } else { '0' }
+} catch { '0' }
+`;
+
+/** True when you are at the keyboard looking at the window of the session running as `pid` (Windows only; false if unsure). */
+function lookingAt(pid, names) {
+  if (process.env.AGENT_NOTIFY_LOOKING) return Promise.resolve(process.env.AGENT_NOTIFY_LOOKING === '1'); // for tests
+  if (process.platform !== 'win32' || !pid) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    const env = { ...process.env, AGENT_NOTIFY_PID: String(pid), AGENT_NOTIFY_WINDOW: names.join('\n') };
+    const p = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(FOCUS_PS, 'utf16le').toString('base64')], { env, stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true });
+    let out = '';
+    p.stdout.on('data', (d) => (out += d));
+    const timer = setTimeout(() => p.kill(), 8000);
+    p.on('error', () => resolve(false));
+    p.on('close', () => {
+      clearTimeout(timer);
+      resolve(out.trim() === '1');
+    });
+  });
+}
+
+// Silent: the sound channel makes the noise, so the two can be switched on and off separately.
 const TOAST_PS = `
 $ErrorActionPreference = 'Stop'
 [void][Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime]
@@ -395,13 +450,14 @@ $ErrorActionPreference = 'Stop'
 $t = [Security.SecurityElement]::Escape($env:AGENT_NOTIFY_TITLE)
 $b = [Security.SecurityElement]::Escape($env:AGENT_NOTIFY_BODY)
 $xml = New-Object Windows.Data.Xml.Dom.XmlDocument
-$xml.LoadXml("<toast><visual><binding template='ToastGeneric'><text>$t</text><text>$b</text></binding></visual></toast>")
+$xml.LoadXml("<toast><visual><binding template='ToastGeneric'><text>$t</text><text>$b</text></binding></visual><audio silent='true'/></toast>")
 $app = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe'
 [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($app).Show([Windows.UI.Notifications.ToastNotification]::new($xml))
 `;
 
 const CHANNELS = {
   toast(ev) {
+    if (ev.seen) return; // you are already looking at that session
     const env = { AGENT_NOTIFY_TITLE: ev.label, AGENT_NOTIFY_BODY: ev.body };
     if (process.platform === 'win32') {
       const encoded = Buffer.from(TOAST_PS, 'utf16le').toString('base64');
@@ -411,6 +467,16 @@ const CHANNELS = {
       return run('osascript', ['-e', 'display notification (system attribute "AGENT_NOTIFY_BODY") with title (system attribute "AGENT_NOTIFY_TITLE")'], env);
     }
     return run('notify-send', [ev.label, ev.body]);
+  },
+
+  // Plays whether or not the toast shows, so a hidden toast still makes a sound.
+  sound() {
+    if (process.platform === 'win32') {
+      const ps = `(New-Object Media.SoundPlayer "$env:WINDIR\\Media\\Windows Notify System Generic.wav").PlaySync()`;
+      return run('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(ps, 'utf16le').toString('base64')]);
+    }
+    if (process.platform === 'darwin') return run('afplay', ['/System/Library/Sounds/Glass.aiff']);
+    return run('paplay', ['/usr/share/sounds/freedesktop/stereo/complete.oga']);
   },
 
   async ntfy(ev, cfg) {
@@ -559,6 +625,11 @@ async function hook(input) {
   }
   if (!topic && event === 'UserPromptSubmit') topic = topicOf(input.prompt);
 
+  // Asked once, so the toast and the page's popup agree; the sound, phone push and the rest ignore it.
+  const pid = Number(process.env.CLAUDE_PID) || prev?.pid;
+  const seen =
+    cfg.hidePopupsWhenFocused && channels.some((c) => c === 'toast' || c === 'dashboard') && (await lookingAt(pid, [basename(top), topic].filter(Boolean)));
+
   writeFileSync(
     file,
     JSON.stringify({
@@ -566,7 +637,7 @@ async function hook(input) {
       turnOffset,
       tokens,
       lastTurn,
-      pid: Number(process.env.CLAUDE_PID) || prev?.pid,
+      pid,
       label,
       // what the session is about, so two sessions in one folder can be told apart
       topic,
@@ -592,12 +663,13 @@ async function hook(input) {
         event === 'UserPromptSubmit' || (state === 'running' && (!prev || prev.state === 'done')) ? now : prev?.turnStart,
       updated: now,
       message: state === 'waiting' ? input.message : undefined,
-      notified: channels.length ? { state: ev.state, at: now, body: ev.body } : prev?.notified,
+      // `seen`: you were looking at this session, so the page shows no popup (its beep still plays)
+      notified: channels.length ? { state: ev.state, at: now, body: ev.body, seen: seen || undefined } : prev?.notified,
     }),
   );
 
   if (!channels.length) return;
-  for (const r of await send(ev, { ...cfg, channels })) {
+  for (const r of await send({ ...ev, seen }, { ...cfg, channels })) {
     if (r.error) appendFileSync(join(DIR, 'errors.log'), `${new Date().toISOString()} ${r.channel}: ${r.error}\n`);
   }
 }
@@ -729,6 +801,7 @@ const settingsView = () => {
     command: cfg.command ?? '',
     minSeconds: cfg.minSeconds,
     showPrompt: cfg.showPrompt,
+    hidePopupsWhenFocused: cfg.hidePopupsWhenFocused,
     quietHours: cfg.quietHours ?? null,
     mutedUntil: muteUntil() > Date.now() ? muteUntil() : 0,
     configPath: CONFIG,
@@ -748,7 +821,7 @@ async function readJsonBody(req) {
 async function dashboard({ open }) {
   const { createServer } = await import('node:http');
   const wanted = Number(process.env.AGENT_NOTIFY_PORT ?? 7878);
-  const server = createServer((req, res) => {
+  const handle = (req, res) => {
     // Only this machine may ask, and only under a local name: a web page elsewhere must not be able
     // to read your sessions by pointing a lookalike hostname at 127.0.0.1.
     const host = (req.headers.host ?? '').replace(/:\d+$/, '');
@@ -829,6 +902,17 @@ async function dashboard({ open }) {
       res.end(readFileSync(PAGE));
     } else {
       res.writeHead(404).end('not found');
+    }
+  };
+  // A throw in a handler (a session file half-written, say) would otherwise kill the whole dashboard.
+  const server = createServer((req, res) => {
+    try {
+      handle(req, res);
+    } catch (err) {
+      try {
+        appendFileSync(join(DIR, 'errors.log'), `${new Date().toISOString()} dashboard ${req.url}: ${err.message}\n`);
+      } catch {}
+      if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: err.message }));
     }
   });
   server.on('error', (err) => fail(err.code === 'EADDRINUSE' ? `port ${wanted} is taken, probably by a dashboard already running: http://localhost:${wanted}` : err.message));

@@ -66,11 +66,17 @@ const listening = () =>
     req.setTimeout(1500, () => (req.destroy(), resolve(false)));
   });
 
+let ensuring = false;
 async function ensureDashboard() {
-  if (await listening()) return;
-  dashboard = spawn(process.env.AGENT_NOTIFY_NODE ?? 'node', [NOTIFY, 'dashboard'], { stdio: 'ignore', windowsHide: true });
-  dashboard.on('error', () => {});
-  for (let i = 0; i < 20 && !(await listening()); i++) await new Promise((r) => setTimeout(r, 250));
+  if (ensuring || (await listening())) return;
+  ensuring = true;
+  try {
+    dashboard = spawn(process.env.AGENT_NOTIFY_NODE ?? 'node', [NOTIFY, 'dashboard'], { stdio: 'ignore', windowsHide: true });
+    dashboard.on('error', () => {});
+    for (let i = 0; i < 20 && !(await listening()); i++) await new Promise((r) => setTimeout(r, 250));
+  } finally {
+    ensuring = false;
+  }
 }
 
 /** The bounds the user last left the window at, if any. */
@@ -111,6 +117,8 @@ function toggle() {
 
 app.whenReady().then(async () => {
   await ensureDashboard();
+  // the dashboard can die after this (a crash, or it was one started from a terminal that has since closed): bring it back
+  setInterval(ensureDashboard, 15000);
   win = new BrowserWindow({ show: false, frame: false, skipTaskbar: true, alwaysOnTop: true, resizable: true, backgroundColor: '#14161c', webPreferences: { contextIsolation: true } });
   win.webContents.setZoomFactor(ZOOM);
   // the page caps its content at 820px; in this popup the window sets the width, so let the rows fill it
