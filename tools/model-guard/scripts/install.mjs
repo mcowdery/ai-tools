@@ -17,6 +17,7 @@ const HOOKS = {
   UserPromptSubmit: 'promptAdvisor.mjs',
   PostModelSwitch: 'recordModelSwitch.mjs',
   SessionStart: 'recordModelSwitch.mjs',
+  Stop: 'planAdvisor.mjs',
 };
 const OURS = new Set(Object.values(HOOKS));
 

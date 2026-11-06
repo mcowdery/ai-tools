@@ -12,7 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from './jev.mjs';
 
-const EVENTS = { UserPromptSubmit: 'promptAdvisor.mjs', PostModelSwitch: 'recordModelSwitch.mjs', SessionStart: 'recordModelSwitch.mjs' };
+const EVENTS = { UserPromptSubmit: 'promptAdvisor.mjs', PostModelSwitch: 'recordModelSwitch.mjs', SessionStart: 'recordModelSwitch.mjs', Stop: 'planAdvisor.mjs' };
 const DAY_MS = 24 * 3600 * 1000;
 
 /** How many of the three hooks `settings` has registered, matched the way install.mjs matches them. */
@@ -23,7 +23,7 @@ export function hooksFound(settings) {
 
 /** Counts the decisions logged since `since` (ms since epoch). Lines that are not JSON are ignored. */
 export function summarizeLog(text, since) {
-  const out = { prompts: 0, nudge: 0, block: 0 };
+  const out = { prompts: 0, nudge: 0, block: 0, plan: 0 };
   for (const line of String(text).split('\n')) {
     let r;
     try {
@@ -32,6 +32,11 @@ export function summarizeLog(text, since) {
       continue;
     }
     if (!(Date.parse(r?.at) >= since)) continue;
+    if (r.hook === 'stop') {
+      // Replies checked by the Stop hook, not prompts.
+      if (r.action === 'plan-block') out.plan++;
+      continue;
+    }
     out.prompts++;
     if (r.action === 'nudge') out.nudge++;
     if (r.action === 'block') out.block++;
@@ -53,7 +58,7 @@ export function buildStatus({ settings, hasKey, logs = [], now = Date.now() }) {
   ];
   if (logs.length) {
     const n = summarizeLog(logs.join('\n'), now - DAY_MS);
-    fields.push({ label: 'Last 24h', value: `${n.prompts} prompts, ${n.nudge} nudged, ${n.block} blocked` });
+    fields.push({ label: 'Last 24h', value: `${n.prompts} prompts, ${n.nudge} nudged, ${n.block} blocked${n.plan ? `, ${n.plan} plan reminders` : ''}` });
   }
   const note = state === 'error' ? 'Only some of the hooks are installed.' : state === 'running' && !hasKey ? 'No classifier key, so nothing is being checked.' : undefined;
   return { state, title: 'Model guard', note, fields, actions: state === 'running' ? ['uninstall'] : state === 'stopped' ? ['install'] : ['install', 'uninstall'] };

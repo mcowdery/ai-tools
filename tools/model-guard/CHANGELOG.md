@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.0
+
+Added
+- Plan reminder: a `Stop` hook (`scripts/planAdvisor.mjs`). When Claude finishes a reply that is
+  a plan or a suggestion and names no model, it is sent back once to add a one-line model
+  recommendation. Jev answers two questions about the reply (plan/suggestion/other, and which tier
+  should do the work) and its tier goes into the reminder as a starting point Claude can override
+  with a reason. Short replies, replies that already name a model and replies with no plan-like
+  wording never reach Jev. `CLAUDE_GUARD_PLAN=0` turns it off, `CLAUDE_SKIP_PLAN_GUARD=1` skips it.
+  Decisions are logged with `hook: "stop"` and actions `plan-block`, `plan-none`, `plan-skip`.
+- `install.mjs` and `status.mjs` now cover four hooks.
+
 ## 1.2.0
 
 Added

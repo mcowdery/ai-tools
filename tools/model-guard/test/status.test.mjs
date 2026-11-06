@@ -17,7 +17,7 @@ test('no hooks is stopped; some hooks is an error offering both actions', () => 
   assert.deepEqual(buildStatus({ settings: {}, hasKey: true }).actions, ['install']);
   const some = applyHooks({});
   delete some.hooks.SessionStart;
-  assert.equal(hooksFound(some), 2);
+  assert.equal(hooksFound(some), 3);
   const s = buildStatus({ settings: some, hasKey: true });
   assert.equal(s.state, 'error');
   assert.deepEqual(s.actions, ['install', 'uninstall']);
@@ -33,7 +33,7 @@ test('the downgrade mode comes from the settings env', () => {
 });
 test('log counts cover the last day only and skip lines that are not JSON', () => {
   const text = [line('2026-11-01T11:00:00Z', 'nudge'), line('2026-11-01T10:00:00Z', 'block'), line('2026-11-01T09:00:00Z', 'none'), line('2026-10-30T09:00:00Z', 'block'), 'garbage', ''].join('\n');
-  assert.deepEqual(summarizeLog(text, NOW - 24 * 3600 * 1000), { prompts: 3, nudge: 1, block: 1 });
+  assert.deepEqual(summarizeLog(text, NOW - 24 * 3600 * 1000), { prompts: 3, nudge: 1, block: 1, plan: 0 });
   const s = buildStatus({ settings: applyHooks({}), hasKey: true, logs: [text], now: NOW });
   assert.equal(s.fields.at(-1).value, '3 prompts, 1 nudged, 1 blocked');
 });

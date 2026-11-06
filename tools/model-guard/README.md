@@ -11,7 +11,7 @@ than spending a real model's tokens on the decision.
 
 ## What it actually does
 
-Three Claude Code hooks, working together:
+Four Claude Code hooks, working together (the fourth, a `Stop` hook, is described under "Plan reminder"):
 
 - **`SessionStart` / `PostModelSwitch`** → record which model the session is actually running
   right now (a tiny state file, nothing fancy).
@@ -42,6 +42,21 @@ immediately second-guessed.
 
 There's also a small interactive CLI (`pickModel.mjs`) for picking a model tier *before* you
 start a session, independent of the hooks.
+
+## Plan reminder (Stop hook)
+
+A fourth hook, `planAdvisor.mjs`, runs when Claude finishes a reply. If the reply is a plan or a
+suggestion and doesn't name a model (haiku, sonnet, opus, fable), the hook sends it back once with
+a request for a one-line model recommendation and a reason. Jev reads the reply and returns two
+answers: is it a plan/suggestion/other, and which tier should do the work. Jev's tier goes into the
+reminder as a starting point; Claude confirms it or overrides it and says why, since Claude knows
+things about the code that Jev, seeing only the reply, doesn't.
+
+Replies under 300 characters, replies that already mention a model, and replies with no list items
+or plan-like wording are skipped without calling Jev. It blocks at most once per reply, and any
+failure (no key, network, slow Jev) is silent. `CLAUDE_GUARD_PLAN=0` turns it off;
+`CLAUDE_SKIP_PLAN_GUARD=1` skips it. The log (`hook: "stop"`) records Jev's tier, so you can see how
+often Claude's final pick differs.
 
 ## Before you start
 

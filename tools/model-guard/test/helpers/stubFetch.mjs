@@ -14,5 +14,9 @@ globalThis.fetch = async (_url, options) => {
     const bc = Number(process.env.STUB_BULK_CONF ?? 0.9);
     answers.bulk_work = { choice: process.env.STUB_BULK, confidence: bc, probabilities: { [process.env.STUB_BULK]: bc } };
   }
+  if (process.env.STUB_KIND) {
+    const kc = Number(process.env.STUB_KIND_CONF ?? 0.9);
+    answers.reply_kind = { choice: process.env.STUB_KIND, confidence: kc, probabilities: { [process.env.STUB_KIND]: kc } };
+  }
   return { ok: true, json: async () => ({ answers }) };
 };

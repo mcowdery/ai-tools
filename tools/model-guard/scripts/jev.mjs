@@ -156,6 +156,46 @@ export async function askJev(taskText, { timeoutMs, bulk = true } = {}) {
   return { tier: answers.model_tier, bulk: bulk ? (answers.bulk_work ?? null) : null };
 }
 
+// For the Stop hook (planAdvisor.mjs): `state` is Claude's own reply. Is it proposing work, and
+// which tier should do that work? Same tier criteria as the prompt question, different framing.
+export const REPLY_KIND_QUESTION = {
+  type: 'choice',
+  instructions: 'What kind of message is the assistant reply described in state?',
+  criteria: {
+    plan:
+      'A plan or implementation proposal: ordered steps, a design, or a list of changes the ' +
+      'assistant intends to make or wants approval for.',
+    suggestion:
+      'Advice or options for the user to act on: what to do next, alternatives to choose ' +
+      'between, a recommended approach or fix.',
+    other:
+      'Anything else: a status report, an answer to a factual question, an explanation, a ' +
+      'summary of work already done, a short confirmation, or a question back to the user.',
+  },
+};
+
+/**
+ * One request, two questions about Claude's reply: is it a plan/suggestion, and which tier
+ * should carry the work out.
+ * @returns {Promise<{kind: object, tier: object}>}
+ */
+export async function askJevAboutReply(replyText, { timeoutMs } = {}) {
+  const { criteria } = loadJevConfig();
+  const answers = await callJev(
+    replyText,
+    {
+      reply_kind: REPLY_KIND_QUESTION,
+      model_tier: {
+        type: 'choice',
+        instructions: 'Which Claude model tier should carry out the work the assistant reply in state proposes?',
+        criteria,
+      },
+    },
+    timeoutMs,
+  );
+  return { kind: answers.reply_kind, tier: answers.model_tier };
+}
+
 /** @returns {Promise<{type: string, choice: string, confidence: number, probabilities: Record<string, number>}>} */
 export async function pickTier(taskText, { timeoutMs } = {}) {
   return (await askJev(taskText, { timeoutMs, bulk: false })).tier;
